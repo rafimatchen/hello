@@ -121,6 +121,22 @@
       font-size: 1rem;
     }
 
+    .refresh-btn {
+      background: none;
+      border: none;
+      color: var(--text-secondary);
+      cursor: pointer;
+      font-size: 0.9rem;
+      padding: 0.25rem;
+      border-radius: 4px;
+      transition: all 0.2s;
+    }
+
+    .refresh-btn:hover {
+      color: var(--text-primary);
+      background: var(--bg-secondary);
+    }
+
     /* Weather Cards */
     .weather-grid {
       grid-column: span 6;
@@ -208,72 +224,6 @@
     .stock-change.up { color: var(--accent-green); }
     .stock-change.down { color: var(--accent-red); }
 
-    /* Sports */
-    .sports-card {
-      grid-column: span 4;
-    }
-
-    .sports-section {
-      margin-bottom: 1rem;
-    }
-
-    .sports-section:last-child {
-      margin-bottom: 0;
-    }
-
-    .sports-league {
-      font-size: 0.7rem;
-      font-weight: 600;
-      color: var(--accent-cyan);
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      margin-bottom: 0.5rem;
-    }
-
-    .game-item {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 0.5rem 0;
-      border-bottom: 1px solid var(--border);
-      font-size: 0.85rem;
-    }
-
-    .game-item:last-child {
-      border-bottom: none;
-    }
-
-    .team {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-
-    .team-logo {
-      font-size: 1.1rem;
-    }
-
-    .score {
-      font-family: 'JetBrains Mono', monospace;
-      font-weight: 600;
-    }
-
-    .game-status {
-      font-size: 0.7rem;
-      color: var(--text-secondary);
-    }
-
-    .live-indicator {
-      color: var(--accent-red);
-      font-weight: 600;
-      animation: pulse 2s infinite;
-    }
-
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.5; }
-    }
-
     /* News Cards */
     .news-card {
       grid-column: span 4;
@@ -283,6 +233,8 @@
       display: flex;
       flex-direction: column;
       gap: 0.75rem;
+      max-height: 400px;
+      overflow-y: auto;
     }
 
     .news-item {
@@ -291,6 +243,9 @@
       border-radius: 8px;
       cursor: pointer;
       transition: all 0.2s ease;
+      text-decoration: none;
+      color: inherit;
+      display: block;
     }
 
     .news-item:hover {
@@ -310,6 +265,7 @@
     .news-source.business { color: var(--accent-green); }
     .news-source.culture { color: var(--accent-purple); }
     .news-source.sports { color: var(--accent-orange); }
+    .news-source.toronto { color: var(--accent-cyan); }
 
     .news-headline {
       font-size: 0.85rem;
@@ -334,6 +290,15 @@
       border: 1px solid rgba(168, 85, 247, 0.2);
       border-radius: 8px;
       margin-bottom: 0.75rem;
+      text-decoration: none;
+      color: inherit;
+      display: block;
+      transition: all 0.2s;
+    }
+
+    .deep-cut-item:hover {
+      transform: translateX(4px);
+      border-color: rgba(168, 85, 247, 0.4);
     }
 
     .deep-cut-item:last-child {
@@ -367,15 +332,9 @@
       border-color: rgba(59, 130, 246, 0.3);
     }
 
-    .toronto-header {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      margin-bottom: 1rem;
-    }
-
-    .toronto-flag {
-      font-size: 1.5rem;
+    /* Sports Card */
+    .sports-card {
+      grid-column: span 4;
     }
 
     /* Ticker */
@@ -389,8 +348,12 @@
 
     .ticker {
       display: flex;
-      animation: scroll 30s linear infinite;
+      animation: scroll 40s linear infinite;
       white-space: nowrap;
+    }
+
+    .ticker:hover {
+      animation-play-state: paused;
     }
 
     .ticker-item {
@@ -438,6 +401,13 @@
       to { transform: rotate(360deg); }
     }
 
+    .error {
+      color: var(--accent-red);
+      font-size: 0.8rem;
+      padding: 1rem;
+      text-align: center;
+    }
+
     /* Responsive */
     @media (max-width: 1200px) {
       .weather-grid { grid-column: span 12; }
@@ -468,8 +438,20 @@
       text-decoration: none;
     }
 
-    a:hover {
-      text-decoration: underline;
+    /* Scrollbar */
+    .news-list::-webkit-scrollbar {
+      width: 6px;
+    }
+    .news-list::-webkit-scrollbar-track {
+      background: var(--bg-secondary);
+      border-radius: 3px;
+    }
+    .news-list::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 3px;
+    }
+    .news-list::-webkit-scrollbar-thumb:hover {
+      background: #3a3a4a;
     }
   </style>
 </head>
@@ -477,17 +459,43 @@
   <div id="root"></div>
 
   <script type="text/babel">
-    const { useState, useEffect } = React;
+    const { useState, useEffect, useCallback } = React;
 
-    // Weather Component
+    // RSS Proxy - using rss2json
+    const RSS_API = 'https://api.rss2json.com/v1/api.json?rss_url=';
+
+    // Helper to fetch RSS
+    async function fetchRSS(url) {
+      const res = await fetch(RSS_API + encodeURIComponent(url));
+      const data = await res.json();
+      if (data.status === 'ok') return data.items;
+      throw new Error('Failed to fetch RSS');
+    }
+
+    // Time ago helper
+    function timeAgo(dateString) {
+      const date = new Date(dateString);
+      const now = new Date();
+      const seconds = Math.floor((now - date) / 1000);
+      if (seconds < 60) return 'just now';
+      const minutes = Math.floor(seconds / 60);
+      if (minutes < 60) return `${minutes}m ago`;
+      const hours = Math.floor(minutes / 60);
+      if (hours < 24) return `${hours}h ago`;
+      const days = Math.floor(hours / 24);
+      return `${days}d ago`;
+    }
+
+    // Weather Component (Real data from Open-Meteo)
     function WeatherCard({ city, lat, lon, timezone }) {
       const [weather, setWeather] = useState(null);
+      const [error, setError] = useState(null);
 
       useEffect(() => {
         fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m&timezone=${timezone}`)
           .then(r => r.json())
           .then(data => setWeather(data.current))
-          .catch(console.error);
+          .catch(e => setError(e.message));
       }, []);
 
       const getWeatherEmoji = (code) => {
@@ -514,6 +522,7 @@
         return 'Cloudy';
       };
 
+      if (error) return <div className="card weather-card"><div className="error">Weather unavailable</div></div>;
       if (!weather) return <div className="card weather-card"><div className="loading">Loading</div></div>;
 
       return (
@@ -532,267 +541,358 @@
       );
     }
 
-    // Stock Ticker Data (simulated with realistic values)
-    function StocksCard() {
-      const stocks = [
-        { symbol: 'SPY', name: 'S&P 500', price: 592.34, change: 0.82 },
-        { symbol: 'QQQ', name: 'Nasdaq 100', price: 518.67, change: 1.24 },
-        { symbol: 'AAPL', name: 'Apple', price: 243.56, change: -0.34 },
-        { symbol: 'MSFT', name: 'Microsoft', price: 428.92, change: 0.56 },
-        { symbol: 'GOOGL', name: 'Alphabet', price: 195.23, change: 1.12 },
-        { symbol: 'TSLA', name: 'Tesla', price: 412.78, change: -2.34 },
-        { symbol: 'TD', name: 'TD Bank', price: 78.45, change: 0.23 },
-        { symbol: 'BTC', name: 'Bitcoin', price: '98,432', change: 3.21 },
-      ];
+    // Generic News Component
+    function NewsCard({ title, icon, feedUrls, category, limit = 6 }) {
+      const [news, setNews] = useState([]);
+      const [loading, setLoading] = useState(true);
+      const [error, setError] = useState(null);
+
+      const fetchNews = useCallback(async () => {
+        setLoading(true);
+        try {
+          const allItems = [];
+          for (const feed of feedUrls) {
+            try {
+              const items = await fetchRSS(feed.url);
+              items.forEach(item => {
+                allItems.push({
+                  ...item,
+                  sourceName: feed.name,
+                  region: feed.region || ''
+                });
+              });
+            } catch (e) {
+              console.warn(`Failed to fetch ${feed.name}:`, e);
+            }
+          }
+          // Sort by date
+          allItems.sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate));
+          setNews(allItems.slice(0, limit));
+          setError(null);
+        } catch (e) {
+          setError(e.message);
+        }
+        setLoading(false);
+      }, [feedUrls, limit]);
+
+      useEffect(() => {
+        fetchNews();
+        const interval = setInterval(fetchNews, 5 * 60 * 1000); // Refresh every 5 min
+        return () => clearInterval(interval);
+      }, [fetchNews]);
+
+      if (error) return (
+        <div className="card news-card">
+          <div className="card-header">
+            <span className="card-title"><span className="icon">{icon}</span> {title}</span>
+          </div>
+          <div className="error">Failed to load news</div>
+        </div>
+      );
 
       return (
-        <div className="card stocks-card">
+        <div className="card news-card">
           <div className="card-header">
-            <span className="card-title"><span className="icon">📈</span> Markets</span>
+            <span className="card-title"><span className="icon">{icon}</span> {title}</span>
+            <button className="refresh-btn" onClick={fetchNews} title="Refresh">🔄</button>
           </div>
-          <div className="stock-list">
-            {stocks.map(stock => (
-              <div key={stock.symbol} className="stock-item">
-                <div>
-                  <div className="stock-symbol">{stock.symbol}</div>
-                  <div className="stock-name">{stock.name}</div>
-                </div>
-                <div className="stock-price">
-                  <div className="stock-value">${stock.price}</div>
-                  <div className={`stock-change ${stock.change >= 0 ? 'up' : 'down'}`}>
-                    {stock.change >= 0 ? '▲' : '▼'} {Math.abs(stock.change)}%
+          {loading && news.length === 0 ? (
+            <div className="loading">Loading</div>
+          ) : (
+            <div className="news-list">
+              {news.map((item, i) => (
+                <a key={i} className="news-item" href={item.link} target="_blank" rel="noopener noreferrer">
+                  <div className={`news-source ${category}`}>
+                    {item.region && `${item.region} `}{item.sourceName}
                   </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      );
-    }
-
-    // Toronto Sports Focus
-    function TorontoSportsCard() {
-      const torontoTeams = [
-        { team: 'Maple Leafs', logo: '🍁', league: 'NHL', record: '28-14-2', next: 'vs BOS Tonight 7PM' },
-        { team: 'Raptors', logo: '🦖', league: 'NBA', record: '12-28', next: 'vs MIA Tomorrow 7:30PM' },
-        { team: 'Blue Jays', logo: '🐦', league: 'MLB', record: 'Offseason', next: 'Spring Training Feb 15' },
-        { team: 'Toronto FC', logo: '⚽', league: 'MLS', record: 'Offseason', next: 'Season starts Feb 22' },
-        { team: 'Argonauts', logo: '🏈', league: 'CFL', record: 'Grey Cup Champs', next: 'Season starts June' },
-      ];
-
-      return (
-        <div className="card toronto-card">
-          <div className="toronto-header">
-            <span className="toronto-flag">🇨🇦</span>
-            <span className="card-title" style={{ margin: 0 }}>Toronto Sports</span>
-          </div>
-          {torontoTeams.map(team => (
-            <div key={team.team} className="game-item">
-              <div className="team">
-                <span className="team-logo">{team.logo}</span>
-                <div>
-                  <div style={{ fontWeight: 500 }}>{team.team}</div>
-                  <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>{team.record}</div>
-                </div>
-              </div>
-              <div style={{ textAlign: 'right', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                {team.next}
-              </div>
-            </div>
-          ))}
-        </div>
-      );
-    }
-
-    // Sports Scores
-    function SportsCard() {
-      const games = {
-        NHL: [
-          { away: 'EDM', home: 'VGK', awayScore: 3, homeScore: 4, status: 'Final' },
-          { away: 'NYR', home: 'CAR', awayScore: 2, homeScore: 2, status: '3rd 8:42', live: true },
-        ],
-        NBA: [
-          { away: 'LAL', home: 'BOS', awayScore: 108, homeScore: 112, status: 'Final' },
-          { away: 'GSW', home: 'PHX', awayScore: 89, homeScore: 94, status: '4th 4:20', live: true },
-        ],
-        NFL: [
-          { away: 'KC', home: 'BUF', awayScore: 0, homeScore: 0, status: 'Sun 6:30 PM', upcoming: true },
-        ],
-        EPL: [
-          { away: 'Liverpool', home: 'Arsenal', awayScore: 2, homeScore: 1, status: 'Final' },
-        ],
-      };
-
-      return (
-        <div className="card sports-card">
-          <div className="card-header">
-            <span className="card-title"><span className="icon">🏆</span> Scores</span>
-          </div>
-          {Object.entries(games).map(([league, leagueGames]) => (
-            <div key={league} className="sports-section">
-              <div className="sports-league">{league}</div>
-              {leagueGames.map((game, i) => (
-                <div key={i} className="game-item">
-                  <span>{game.away}</span>
-                  <span className="score">
-                    {game.upcoming ? '-' : game.awayScore} - {game.upcoming ? '-' : game.homeScore}
-                  </span>
-                  <span>{game.home}</span>
-                  <span className={`game-status ${game.live ? 'live-indicator' : ''}`}>
-                    {game.live && '● '}{game.status}
-                  </span>
-                </div>
+                  <div className="news-headline">{item.title}</div>
+                  <div className="news-time">{timeAgo(item.pubDate)}</div>
+                </a>
               ))}
             </div>
-          ))}
+          )}
         </div>
       );
     }
 
     // Politics News
     function PoliticsCard() {
-      const news = [
-        { source: 'Reuters', headline: 'Biden administration announces new semiconductor manufacturing incentives', time: '2h ago', region: '🇺🇸' },
-        { source: 'Globe & Mail', headline: 'Trudeau faces caucus pressure ahead of key budget vote', time: '3h ago', region: '🇨🇦' },
-        { source: 'Times of Israel', headline: 'Netanyahu coalition debates judicial reform amendments', time: '4h ago', region: '🇮🇱' },
-        { source: 'AP News', headline: 'Congress nears bipartisan deal on border security package', time: '5h ago', region: '🇺🇸' },
-        { source: 'CBC', headline: 'Ontario announces major transit funding for GTA expansion', time: '6h ago', region: '🇨🇦' },
+      const feeds = [
+        { name: 'Reuters', url: 'https://www.reutersagency.com/feed/?best-topics=political-general&post_type=best', region: '🌍' },
+        { name: 'AP News', url: 'https://rsshub.app/apnews/topics/politics', region: '🇺🇸' },
+        { name: 'CBC Politics', url: 'https://www.cbc.ca/webfeed/rss/rss-politics', region: '🇨🇦' },
+        { name: 'Times of Israel', url: 'https://www.timesofisrael.com/feed/', region: '🇮🇱' },
+        { name: 'NPR Politics', url: 'https://feeds.npr.org/1014/rss.xml', region: '🇺🇸' },
       ];
-
-      return (
-        <div className="card news-card">
-          <div className="card-header">
-            <span className="card-title"><span className="icon">🏛️</span> Politics</span>
-          </div>
-          <div className="news-list">
-            {news.map((item, i) => (
-              <div key={i} className="news-item">
-                <div className="news-source politics">{item.region} {item.source}</div>
-                <div className="news-headline">{item.headline}</div>
-                <div className="news-time">{item.time}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      );
+      return <NewsCard title="Politics" icon="🏛️" feedUrls={feeds} category="politics" limit={7} />;
     }
 
     // Business News
     function BusinessCard() {
-      const news = [
-        { source: 'Bloomberg', headline: 'Fed signals potential rate cuts as inflation cools further', time: '1h ago' },
-        { source: 'FT', headline: 'OpenAI in talks for new funding round at $150B valuation', time: '2h ago' },
-        { source: 'WSJ', headline: 'Tech giants announce joint AI safety initiative', time: '3h ago' },
-        { source: 'Reuters', headline: 'Oil prices surge on Middle East supply concerns', time: '4h ago' },
-        { source: 'CNBC', headline: 'Housing market shows signs of stabilization in Q4', time: '5h ago' },
+      const feeds = [
+        { name: 'Reuters Business', url: 'https://www.reutersagency.com/feed/?best-topics=business-finance&post_type=best' },
+        { name: 'CNBC', url: 'https://www.cnbc.com/id/100003114/device/rss/rss.html' },
+        { name: 'Bloomberg', url: 'https://feeds.bloomberg.com/markets/news.rss' },
+        { name: 'Financial Times', url: 'https://www.ft.com/rss/home' },
       ];
+      return <NewsCard title="Business" icon="💼" feedUrls={feeds} category="business" limit={6} />;
+    }
 
+    // Toronto / Canada News
+    function TorontoCard() {
+      const feeds = [
+        { name: 'Toronto Star', url: 'https://www.thestar.com/search/?f=rss&t=article&c=news/gta*&l=50&s=start_time&sd=desc' },
+        { name: 'Globe & Mail', url: 'https://www.theglobeandmail.com/arc/outboundfeeds/rss/category/canada/' },
+        { name: 'CBC Toronto', url: 'https://www.cbc.ca/webfeed/rss/rss-canada-toronto', region: '🇨🇦' },
+        { name: 'BlogTO', url: 'https://www.blogto.com/feed/' },
+      ];
       return (
-        <div className="card news-card">
+        <div className="toronto-card card news-card" style={{ background: 'linear-gradient(135deg, var(--bg-card), rgba(59, 130, 246, 0.1))', borderColor: 'rgba(59, 130, 246, 0.3)' }}>
           <div className="card-header">
-            <span className="card-title"><span className="icon">💼</span> Business</span>
+            <span className="card-title"><span className="icon">🍁</span> Toronto & Canada</span>
           </div>
-          <div className="news-list">
-            {news.map((item, i) => (
-              <div key={i} className="news-item">
-                <div className="news-source business">{item.source}</div>
-                <div className="news-headline">{item.headline}</div>
-                <div className="news-time">{item.time}</div>
-              </div>
-            ))}
-          </div>
+          <NewsCardInner feedUrls={feeds} category="toronto" limit={6} />
         </div>
       );
     }
 
-    // Deep Cuts - Intellectual/Cultural
-    function DeepCutsCard() {
-      const items = [
-        {
-          category: 'Philosophy',
-          title: 'The Return of Virtue Ethics in AI Alignment',
-          desc: 'How Aristotelian frameworks are reshaping machine learning ethics debates'
-        },
-        {
-          category: 'Architecture',
-          title: 'Tadao Ando\'s New Meditation Pavilion Opens',
-          desc: 'The minimalist master creates a concrete sanctuary in rural Japan'
-        },
-        {
-          category: 'Literature',
-          title: 'Rediscovered Borges Manuscripts Surface',
-          desc: 'Previously unknown short stories found in Buenos Aires archive'
-        },
-        {
-          category: 'Jazz',
-          title: 'Coltrane\'s Lost 1963 Session Finally Released',
-          desc: 'Impulse! unearths unreleased quartet recordings from Van Gelder Studio'
-        },
+    // Sports News
+    function SportsCard() {
+      const feeds = [
+        { name: 'ESPN', url: 'https://www.espn.com/espn/rss/news' },
+        { name: 'TSN', url: 'https://www.tsn.ca/rss/sports' },
+        { name: 'Sportsnet', url: 'https://www.sportsnet.ca/feed/' },
+        { name: 'The Athletic', url: 'https://theathletic.com/rss/' },
+        { name: 'BBC Sport', url: 'https://feeds.bbci.co.uk/sport/rss.xml' },
       ];
+      return <NewsCard title="Sports" icon="🏆" feedUrls={feeds} category="sports" limit={8} />;
+    }
+
+    // Culture / Arts
+    function CultureCard() {
+      const feeds = [
+        { name: 'Pitchfork', url: 'https://pitchfork.com/feed/feed-news/rss' },
+        { name: 'NYT Arts', url: 'https://rss.nytimes.com/services/xml/rss/nyt/Arts.xml' },
+        { name: 'The Guardian Culture', url: 'https://www.theguardian.com/culture/rss' },
+        { name: 'Hyperallergic', url: 'https://hyperallergic.com/feed/' },
+      ];
+      return <NewsCard title="Culture" icon="🎨" feedUrls={feeds} category="culture" limit={6} />;
+    }
+
+    // Deep Cuts - Intellectual
+    function DeepCutsCard() {
+      const [items, setItems] = useState([]);
+      const [loading, setLoading] = useState(true);
+
+      const feeds = [
+        { name: 'Aeon', url: 'https://aeon.co/feed.rss', category: 'Philosophy' },
+        { name: 'The MIT Press Reader', url: 'https://thereader.mitpress.mit.edu/feed/', category: 'Ideas' },
+        { name: 'LitHub', url: 'https://lithub.com/feed/', category: 'Literature' },
+        { name: 'The Marginalian', url: 'https://www.themarginalian.org/feed/', category: 'Culture' },
+        { name: 'Longreads', url: 'https://longreads.com/feed/', category: 'Essays' },
+        { name: 'n+1', url: 'https://www.nplusonemag.com/feed/', category: 'Criticism' },
+      ];
+
+      useEffect(() => {
+        async function load() {
+          const allItems = [];
+          for (const feed of feeds) {
+            try {
+              const rssItems = await fetchRSS(feed.url);
+              rssItems.slice(0, 2).forEach(item => {
+                allItems.push({
+                  ...item,
+                  category: feed.category,
+                  source: feed.name
+                });
+              });
+            } catch (e) {
+              console.warn(`Failed: ${feed.name}`);
+            }
+          }
+          // Shuffle for variety
+          allItems.sort(() => Math.random() - 0.5);
+          setItems(allItems.slice(0, 5));
+          setLoading(false);
+        }
+        load();
+      }, []);
+
+      // Strip HTML from description
+      const stripHtml = (html) => {
+        const tmp = document.createElement('div');
+        tmp.innerHTML = html;
+        return tmp.textContent || tmp.innerText || '';
+      };
 
       return (
         <div className="card deep-cuts-card">
           <div className="card-header">
             <span className="card-title"><span className="icon">🎭</span> Deep Cuts</span>
           </div>
-          {items.map((item, i) => (
-            <div key={i} className="deep-cut-item">
-              <div className="deep-cut-category">{item.category}</div>
-              <div className="deep-cut-title">{item.title}</div>
-              <div className="deep-cut-desc">{item.desc}</div>
-            </div>
+          {loading ? (
+            <div className="loading">Loading</div>
+          ) : (
+            items.map((item, i) => (
+              <a key={i} className="deep-cut-item" href={item.link} target="_blank" rel="noopener noreferrer">
+                <div className="deep-cut-category">{item.category} · {item.source}</div>
+                <div className="deep-cut-title">{item.title}</div>
+                <div className="deep-cut-desc">{stripHtml(item.description).slice(0, 120)}...</div>
+              </a>
+            ))
+          )}
+        </div>
+      );
+    }
+
+    // Inner news component for Toronto card
+    function NewsCardInner({ feedUrls, category, limit = 6 }) {
+      const [news, setNews] = useState([]);
+      const [loading, setLoading] = useState(true);
+
+      useEffect(() => {
+        async function load() {
+          const allItems = [];
+          for (const feed of feedUrls) {
+            try {
+              const items = await fetchRSS(feed.url);
+              items.forEach(item => {
+                allItems.push({ ...item, sourceName: feed.name, region: feed.region || '' });
+              });
+            } catch (e) {
+              console.warn(`Failed: ${feed.name}`);
+            }
+          }
+          allItems.sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate));
+          setNews(allItems.slice(0, limit));
+          setLoading(false);
+        }
+        load();
+      }, []);
+
+      if (loading) return <div className="loading">Loading</div>;
+
+      return (
+        <div className="news-list">
+          {news.map((item, i) => (
+            <a key={i} className="news-item" href={item.link} target="_blank" rel="noopener noreferrer">
+              <div className={`news-source ${category}`}>
+                {item.region && `${item.region} `}{item.sourceName}
+              </div>
+              <div className="news-headline">{item.title}</div>
+              <div className="news-time">{timeAgo(item.pubDate)}</div>
+            </a>
           ))}
         </div>
       );
     }
 
-    // Culture News
-    function CultureCard() {
-      const news = [
-        { source: 'Pitchfork', headline: 'The defining albums reshaping experimental music in 2025', time: '2h ago' },
-        { source: 'Criterion', headline: 'New 4K restorations of Tarkovsky\'s entire filmography announced', time: '4h ago' },
-        { source: 'NYT Books', headline: 'This year\'s most ambitious debut novels', time: '5h ago' },
-        { source: 'Artforum', headline: 'Venice Biennale announces 2026 curator and theme', time: '6h ago' },
-        { source: 'n+1', headline: 'On the new literary pessimism: essays from the discourse', time: '8h ago' },
-      ];
+    // Stock data from Yahoo Finance via a CORS proxy
+    function StocksCard() {
+      const [stocks, setStocks] = useState([]);
+      const [loading, setLoading] = useState(true);
+
+      const symbols = ['SPY', 'QQQ', 'AAPL', 'MSFT', 'GOOGL', 'NVDA', 'TD.TO', 'BTC-USD'];
+      const names = {
+        'SPY': 'S&P 500',
+        'QQQ': 'Nasdaq 100',
+        'AAPL': 'Apple',
+        'MSFT': 'Microsoft',
+        'GOOGL': 'Alphabet',
+        'NVDA': 'NVIDIA',
+        'TD.TO': 'TD Bank',
+        'BTC-USD': 'Bitcoin'
+      };
+
+      useEffect(() => {
+        async function fetchStocks() {
+          try {
+            // Using Yahoo Finance via a public API
+            const symbolList = symbols.join(',');
+            const res = await fetch(`https://query1.finance.yahoo.com/v7/finance/quote?symbols=${symbolList}`);
+            const data = await res.json();
+
+            if (data.quoteResponse && data.quoteResponse.result) {
+              const results = data.quoteResponse.result.map(q => ({
+                symbol: q.symbol.replace('.TO', '').replace('-USD', ''),
+                name: names[q.symbol] || q.shortName,
+                price: q.regularMarketPrice?.toFixed(2) || 'N/A',
+                change: q.regularMarketChangePercent?.toFixed(2) || 0
+              }));
+              setStocks(results);
+            }
+          } catch (e) {
+            console.error('Stock fetch failed:', e);
+            // Fallback to placeholder
+            setStocks(symbols.map(s => ({
+              symbol: s.replace('.TO', '').replace('-USD', ''),
+              name: names[s],
+              price: '---',
+              change: 0
+            })));
+          }
+          setLoading(false);
+        }
+        fetchStocks();
+        const interval = setInterval(fetchStocks, 60000); // Refresh every minute
+        return () => clearInterval(interval);
+      }, []);
 
       return (
-        <div className="card news-card">
+        <div className="card stocks-card">
           <div className="card-header">
-            <span className="card-title"><span className="icon">🎨</span> Culture</span>
+            <span className="card-title"><span className="icon">📈</span> Markets</span>
+            <a href="https://finance.yahoo.com" target="_blank" rel="noopener noreferrer" className="refresh-btn" title="Open Yahoo Finance">↗</a>
           </div>
-          <div className="news-list">
-            {news.map((item, i) => (
-              <div key={i} className="news-item">
-                <div className="news-source culture">{item.source}</div>
-                <div className="news-headline">{item.headline}</div>
-                <div className="news-time">{item.time}</div>
-              </div>
-            ))}
-          </div>
+          {loading ? (
+            <div className="loading">Loading</div>
+          ) : (
+            <div className="stock-list">
+              {stocks.map(stock => (
+                <div key={stock.symbol} className="stock-item">
+                  <div>
+                    <div className="stock-symbol">{stock.symbol}</div>
+                    <div className="stock-name">{stock.name}</div>
+                  </div>
+                  <div className="stock-price">
+                    <div className="stock-value">${stock.price}</div>
+                    <div className={`stock-change ${parseFloat(stock.change) >= 0 ? 'up' : 'down'}`}>
+                      {parseFloat(stock.change) >= 0 ? '▲' : '▼'} {Math.abs(stock.change)}%
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       );
     }
 
     // Stock Ticker Bar
     function TickerBar() {
-      const items = [
-        { symbol: 'SPY', price: 592.34, change: 0.82 },
-        { symbol: 'QQQ', price: 518.67, change: 1.24 },
-        { symbol: 'DIA', price: 437.12, change: 0.34 },
-        { symbol: 'AAPL', price: 243.56, change: -0.34 },
-        { symbol: 'MSFT', price: 428.92, change: 0.56 },
-        { symbol: 'GOOGL', price: 195.23, change: 1.12 },
-        { symbol: 'AMZN', price: 225.67, change: 0.89 },
-        { symbol: 'NVDA', price: 142.34, change: 2.45 },
-        { symbol: 'TSLA', price: 412.78, change: -2.34 },
-        { symbol: 'META', price: 612.45, change: 1.67 },
-        { symbol: 'BTC', price: '98,432', change: 3.21 },
-        { symbol: 'ETH', price: '3,456', change: 2.87 },
-        { symbol: 'SHOP', price: 115.23, change: 1.45 },
-        { symbol: 'TD', price: 78.45, change: 0.23 },
-        { symbol: 'RY', price: 134.67, change: 0.12 },
-      ];
+      const [items, setItems] = useState([]);
+
+      const symbols = ['SPY', 'QQQ', 'DIA', 'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA', 'TSLA', 'META', 'BTC-USD', 'ETH-USD', 'SHOP.TO', 'TD.TO', 'RY.TO'];
+
+      useEffect(() => {
+        async function fetch() {
+          try {
+            const res = await window.fetch(`https://query1.finance.yahoo.com/v7/finance/quote?symbols=${symbols.join(',')}`);
+            const data = await res.json();
+            if (data.quoteResponse?.result) {
+              setItems(data.quoteResponse.result.map(q => ({
+                symbol: q.symbol.replace('.TO', '').replace('-USD', ''),
+                price: q.regularMarketPrice?.toFixed(2) || '---',
+                change: q.regularMarketChangePercent?.toFixed(2) || 0
+              })));
+            }
+          } catch (e) {
+            // Fallback
+            setItems(symbols.map(s => ({ symbol: s.replace('.TO', '').replace('-USD', ''), price: '---', change: 0 })));
+          }
+        }
+        fetch();
+      }, []);
 
       const doubled = [...items, ...items];
 
@@ -803,8 +903,8 @@
               <span key={i} className="ticker-item">
                 <span className="symbol">{item.symbol}</span>
                 <span>${item.price}</span>
-                <span className={`change ${item.change >= 0 ? 'up' : 'down'}`}>
-                  {item.change >= 0 ? '▲' : '▼'} {Math.abs(item.change)}%
+                <span className={`change ${parseFloat(item.change) >= 0 ? 'up' : 'down'}`}>
+                  {parseFloat(item.change) >= 0 ? '▲' : '▼'} {Math.abs(item.change)}%
                 </span>
               </span>
             ))}
@@ -826,10 +926,12 @@
         weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
       });
 
+      const greeting = time.getHours() < 12 ? 'morning' : time.getHours() < 18 ? 'afternoon' : 'evening';
+
       return (
         <div className="dashboard">
           <header className="header">
-            <h1>Good {time.getHours() < 12 ? 'morning' : time.getHours() < 18 ? 'afternoon' : 'evening'}, Rafi</h1>
+            <h1>Good {greeting}, Rafi</h1>
             <div className="header-time">
               <div className="time">
                 {time.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
@@ -849,8 +951,8 @@
 
             <StocksCard />
 
-            <TorontoSportsCard />
             <SportsCard />
+            <TorontoCard />
             <PoliticsCard />
             <BusinessCard />
             <CultureCard />
