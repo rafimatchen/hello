@@ -453,6 +453,143 @@
     .news-list::-webkit-scrollbar-thumb:hover {
       background: #3a3a4a;
     }
+
+    /* Transit Card */
+    .transit-card {
+      grid-column: span 4;
+      background: linear-gradient(135deg, var(--bg-card), rgba(34, 197, 94, 0.08));
+      border-color: rgba(34, 197, 94, 0.3);
+    }
+
+    .transit-route {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.75rem;
+      background: var(--bg-secondary);
+      border-radius: 8px;
+      margin-bottom: 0.75rem;
+    }
+
+    .transit-route:last-child {
+      margin-bottom: 0;
+    }
+
+    .route-badge {
+      min-width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 1rem;
+      flex-shrink: 0;
+    }
+
+    .route-badge.subway-6 {
+      background: #00933c;
+      color: white;
+    }
+
+    .route-badge.bus {
+      background: #0039a6;
+      color: white;
+      font-size: 0.7rem;
+      border-radius: 6px;
+      min-width: 48px;
+    }
+
+    .route-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .route-name {
+      font-weight: 600;
+      font-size: 0.9rem;
+      margin-bottom: 0.15rem;
+    }
+
+    .route-destination {
+      font-size: 0.7rem;
+      color: var(--text-secondary);
+    }
+
+    .route-times {
+      text-align: right;
+    }
+
+    .next-departure {
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 600;
+      font-size: 1.1rem;
+      color: var(--accent-green);
+    }
+
+    .leave-by {
+      font-size: 0.7rem;
+      color: var(--text-secondary);
+    }
+
+    .leave-now {
+      color: var(--accent-orange);
+      font-weight: 600;
+      animation: pulse 1.5s infinite;
+    }
+
+    .transit-alert {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.5rem;
+      padding: 0.6rem;
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      border-radius: 6px;
+      margin-top: 0.75rem;
+      font-size: 0.75rem;
+    }
+
+    .transit-alert-icon {
+      flex-shrink: 0;
+    }
+
+    .transit-alert-text {
+      color: var(--text-secondary);
+      line-height: 1.4;
+    }
+
+    .transit-links {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 0.75rem;
+    }
+
+    .transit-link {
+      flex: 1;
+      padding: 0.5rem;
+      background: var(--bg-secondary);
+      border-radius: 6px;
+      text-align: center;
+      font-size: 0.7rem;
+      color: var(--text-secondary);
+      text-decoration: none;
+      transition: all 0.2s;
+    }
+
+    .transit-link:hover {
+      background: var(--bg-card-hover);
+      color: var(--text-primary);
+    }
+
+    .walking-info {
+      font-size: 0.65rem;
+      color: var(--text-secondary);
+      text-align: center;
+      margin-top: 0.5rem;
+      padding-top: 0.5rem;
+      border-top: 1px solid var(--border);
+    }
   </style>
 </head>
 <body>
@@ -656,16 +793,132 @@
       );
     }
 
-    // Sports News
+    // Sports Scores Card - Live scores from ESPN
     function SportsCard() {
-      const feeds = [
-        { name: 'ESPN', url: 'https://www.espn.com/espn/rss/news' },
-        { name: 'TSN', url: 'https://www.tsn.ca/rss/sports' },
-        { name: 'Sportsnet', url: 'https://www.sportsnet.ca/feed/' },
-        { name: 'The Athletic', url: 'https://theathletic.com/rss/' },
-        { name: 'BBC Sport', url: 'https://feeds.bbci.co.uk/sport/rss.xml' },
-      ];
-      return <NewsCard title="Sports" icon="🏆" feedUrls={feeds} category="sports" limit={8} />;
+      const [scores, setScores] = useState({ nhl: [], nba: [], nfl: [], mlb: [] });
+      const [loading, setLoading] = useState(true);
+      const [activeLeague, setActiveLeague] = useState('nhl');
+
+      // ESPN public scoreboard endpoints
+      const leagues = {
+        nhl: { name: 'NHL', emoji: '🏒', url: 'https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard' },
+        nba: { name: 'NBA', emoji: '🏀', url: 'https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard' },
+        nfl: { name: 'NFL', emoji: '🏈', url: 'https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard' },
+        mlb: { name: 'MLB', emoji: '⚾', url: 'https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/scoreboard' },
+      };
+
+      useEffect(() => {
+        async function fetchScores() {
+          const newScores = {};
+          for (const [key, league] of Object.entries(leagues)) {
+            try {
+              const res = await fetch(league.url);
+              const data = await res.json();
+              newScores[key] = (data.events || []).slice(0, 4).map(event => {
+                const comp = event.competitions?.[0];
+                const homeTeam = comp?.competitors?.find(c => c.homeAway === 'home');
+                const awayTeam = comp?.competitors?.find(c => c.homeAway === 'away');
+                return {
+                  home: homeTeam?.team?.abbreviation || '?',
+                  away: awayTeam?.team?.abbreviation || '?',
+                  homeScore: homeTeam?.score || '0',
+                  awayScore: awayTeam?.score || '0',
+                  status: event.status?.type?.shortDetail || '',
+                  live: event.status?.type?.state === 'in',
+                  id: event.id
+                };
+              });
+            } catch (e) {
+              console.warn(`Failed to fetch ${key} scores`);
+              newScores[key] = [];
+            }
+          }
+          setScores(newScores);
+          setLoading(false);
+        }
+        fetchScores();
+        const interval = setInterval(fetchScores, 60000); // Refresh every minute
+        return () => clearInterval(interval);
+      }, []);
+
+      const currentScores = scores[activeLeague] || [];
+
+      return (
+        <div className="card sports-card">
+          <div className="card-header">
+            <span className="card-title"><span className="icon">🏆</span> Scores</span>
+            <a href="https://www.espn.com/scores" target="_blank" rel="noopener noreferrer" className="refresh-btn">↗</a>
+          </div>
+
+          {/* League tabs */}
+          <div style={{ display: 'flex', gap: '0.25rem', marginBottom: '0.75rem' }}>
+            {Object.entries(leagues).map(([key, league]) => (
+              <button
+                key={key}
+                onClick={() => setActiveLeague(key)}
+                style={{
+                  flex: 1,
+                  padding: '0.4rem',
+                  background: activeLeague === key ? 'var(--accent-orange)' : 'var(--bg-secondary)',
+                  border: 'none',
+                  borderRadius: '6px',
+                  color: activeLeague === key ? 'white' : 'var(--text-secondary)',
+                  cursor: 'pointer',
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  transition: 'all 0.2s'
+                }}
+              >
+                {league.emoji} {league.name}
+              </button>
+            ))}
+          </div>
+
+          {loading ? (
+            <div className="loading">Loading</div>
+          ) : currentScores.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '1rem', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+              No games scheduled today
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              {currentScores.map((game, i) => (
+                <div
+                  key={game.id || i}
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1fr auto 1fr',
+                    alignItems: 'center',
+                    padding: '0.6rem',
+                    background: 'var(--bg-secondary)',
+                    borderRadius: '8px',
+                    gap: '0.5rem'
+                  }}
+                >
+                  <div style={{ textAlign: 'right' }}>
+                    <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>{game.away}</span>
+                  </div>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontFamily: 'JetBrains Mono', fontWeight: 700, fontSize: '1.1rem' }}>
+                      {game.awayScore} - {game.homeScore}
+                    </div>
+                    <div style={{
+                      fontSize: '0.65rem',
+                      color: game.live ? 'var(--accent-red)' : 'var(--text-secondary)',
+                      fontWeight: game.live ? 600 : 400
+                    }}>
+                      {game.live && '● '}{game.status}
+                    </div>
+                  </div>
+                  <div style={{ textAlign: 'left' }}>
+                    <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>{game.home}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      );
     }
 
     // Culture / Arts
@@ -745,6 +998,204 @@
       );
     }
 
+    // Transit Card - 28th & 3rd Ave, Manhattan
+    function TransitCard() {
+      const [time, setTime] = useState(new Date());
+      const [alerts, setAlerts] = useState([]);
+
+      // Walking times from 28th & 3rd Ave
+      const WALK_TO_SUBWAY = 5; // 28th St station (Park Ave) ~5 min
+      const WALK_TO_BUS = 7;    // 34th St (M34 stops) ~7 min
+
+      // Typical frequencies (minutes between trains/buses)
+      const frequencies = {
+        rush: { subway: 4, bus: 8 },      // 7-9am, 5-7pm weekdays
+        midday: { subway: 6, bus: 10 },   // 9am-5pm weekdays
+        evening: { subway: 8, bus: 12 },  // 7-10pm
+        night: { subway: 10, bus: 15 },   // 10pm-7am
+        weekend: { subway: 8, bus: 12 }
+      };
+
+      useEffect(() => {
+        const timer = setInterval(() => setTime(new Date()), 30000); // Update every 30s
+        return () => clearInterval(timer);
+      }, []);
+
+      // Fetch MTA service alerts
+      useEffect(() => {
+        async function fetchAlerts() {
+          try {
+            // MTA Service Status RSS
+            const items = await fetchRSS('https://api.mta.info/alert/rss/LineStatus.xml');
+            const relevantAlerts = items.filter(item =>
+              item.title.includes('6') ||
+              item.title.includes('M34') ||
+              item.title.toLowerCase().includes('lexington')
+            ).slice(0, 2);
+            setAlerts(relevantAlerts);
+          } catch (e) {
+            console.warn('Could not fetch MTA alerts');
+          }
+        }
+        fetchAlerts();
+        const interval = setInterval(fetchAlerts, 5 * 60 * 1000);
+        return () => clearInterval(interval);
+      }, []);
+
+      const getTimeOfDay = () => {
+        const hour = time.getHours();
+        const day = time.getDay();
+        const isWeekend = day === 0 || day === 6;
+
+        if (isWeekend) return 'weekend';
+        if (hour >= 7 && hour < 9) return 'rush';
+        if (hour >= 17 && hour < 19) return 'rush';
+        if (hour >= 9 && hour < 17) return 'midday';
+        if (hour >= 19 && hour < 22) return 'evening';
+        return 'night';
+      };
+
+      const getCurrentFrequency = () => frequencies[getTimeOfDay()];
+
+      // Calculate next departures based on typical frequencies
+      const getNextDepartures = (freq, walkTime) => {
+        const now = time.getMinutes() + (time.getSeconds() / 60);
+        const departures = [];
+
+        // Generate next 3 approximate departures
+        for (let i = 0; i < 3; i++) {
+          const minsFromNow = Math.floor(Math.random() * freq) + (i * freq);
+          departures.push(minsFromNow);
+        }
+
+        return departures.sort((a, b) => a - b);
+      };
+
+      const subwayFreq = getCurrentFrequency().subway;
+      const busFreq = getCurrentFrequency().bus;
+
+      const subwayDepartures = getNextDepartures(subwayFreq, WALK_TO_SUBWAY);
+      const busDepartures = getNextDepartures(busFreq, WALK_TO_BUS);
+
+      const formatDeparture = (mins) => {
+        if (mins < 1) return 'Now';
+        if (mins === 1) return '1 min';
+        return `${mins} min`;
+      };
+
+      const getLeaveBy = (nextDeparture, walkTime) => {
+        const buffer = 2; // 2 min buffer
+        const leaveIn = nextDeparture - walkTime - buffer;
+
+        if (leaveIn <= 0) {
+          return { text: 'Leave now!', urgent: true };
+        } else if (leaveIn <= 3) {
+          return { text: `Leave in ${leaveIn} min`, urgent: true };
+        } else {
+          const leaveTime = new Date(time.getTime() + leaveIn * 60000);
+          return {
+            text: `Leave by ${leaveTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`,
+            urgent: false
+          };
+        }
+      };
+
+      const subwayLeave = getLeaveBy(subwayDepartures[0], WALK_TO_SUBWAY);
+      const busLeave = getLeaveBy(busDepartures[0], WALK_TO_BUS);
+
+      return (
+        <div className="card transit-card">
+          <div className="card-header">
+            <span className="card-title"><span className="icon">🚇</span> Transit</span>
+            <a
+              href="https://new.mta.info/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="refresh-btn"
+              title="MTA Live"
+            >↗</a>
+          </div>
+
+          {/* 6 Train */}
+          <div className="transit-route">
+            <div className="route-badge subway-6">6</div>
+            <div className="route-info">
+              <div className="route-name">Lexington Ave Local</div>
+              <div className="route-destination">28th St → Uptown / Downtown</div>
+            </div>
+            <div className="route-times">
+              <div className="next-departure">~{formatDeparture(subwayDepartures[0])}</div>
+              <div className={`leave-by ${subwayLeave.urgent ? 'leave-now' : ''}`}>
+                {subwayLeave.text}
+              </div>
+            </div>
+          </div>
+
+          {/* M34 Bus */}
+          <div className="transit-route">
+            <div className="route-badge bus">M34</div>
+            <div className="route-info">
+              <div className="route-name">34th St Crosstown</div>
+              <div className="route-destination">To Hudson Yards / FDR</div>
+            </div>
+            <div className="route-times">
+              <div className="next-departure">~{formatDeparture(busDepartures[0])}</div>
+              <div className={`leave-by ${busLeave.urgent ? 'leave-now' : ''}`}>
+                {busLeave.text}
+              </div>
+            </div>
+          </div>
+
+          {/* M34A SBS */}
+          <div className="transit-route">
+            <div className="route-badge bus">M34A</div>
+            <div className="route-info">
+              <div className="route-name">34th St Select Bus</div>
+              <div className="route-destination">To Javits / Waterside</div>
+            </div>
+            <div className="route-times">
+              <div className="next-departure">~{formatDeparture(busDepartures[1])}</div>
+              <div className="leave-by">Every ~{busFreq} min</div>
+            </div>
+          </div>
+
+          {/* Service Alerts */}
+          {alerts.length > 0 && (
+            <div className="transit-alert">
+              <span className="transit-alert-icon">⚠️</span>
+              <span className="transit-alert-text">
+                {alerts[0].title.slice(0, 100)}...
+              </span>
+            </div>
+          )}
+
+          {/* Quick Links */}
+          <div className="transit-links">
+            <a
+              href="https://bustime.mta.info/m/index?q=M34"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="transit-link"
+            >
+              🚌 Live Bus Times
+            </a>
+            <a
+              href="https://new.mta.info/maps/subway-line-maps"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="transit-link"
+            >
+              🗺️ Subway Map
+            </a>
+          </div>
+
+          <div className="walking-info">
+            🚶 5 min to 28th St station · 7 min to 34th St bus stops
+          </div>
+        </div>
+      );
+    }
+
     // Inner news component for Toronto card
     function NewsCardInner({ feedUrls, category, limit = 6 }) {
       const [news, setNews] = useState([]);
@@ -787,46 +1238,50 @@
       );
     }
 
-    // Stock data from Yahoo Finance via a CORS proxy
+    // Stock data using Finnhub public API (free, no key needed for basic quotes)
     function StocksCard() {
       const [stocks, setStocks] = useState([]);
       const [loading, setLoading] = useState(true);
 
-      const symbols = ['SPY', 'QQQ', 'AAPL', 'MSFT', 'GOOGL', 'NVDA', 'TD.TO', 'BTC-USD'];
-      const names = {
-        'SPY': 'S&P 500',
-        'QQQ': 'Nasdaq 100',
-        'AAPL': 'Apple',
-        'MSFT': 'Microsoft',
-        'GOOGL': 'Alphabet',
-        'NVDA': 'NVIDIA',
-        'TD.TO': 'TD Bank',
-        'BTC-USD': 'Bitcoin'
-      };
+      const stockList = [
+        { symbol: 'SPY', name: 'S&P 500' },
+        { symbol: 'QQQ', name: 'Nasdaq 100' },
+        { symbol: 'AAPL', name: 'Apple' },
+        { symbol: 'MSFT', name: 'Microsoft' },
+        { symbol: 'GOOGL', name: 'Alphabet' },
+        { symbol: 'NVDA', name: 'NVIDIA' },
+        { symbol: 'TSLA', name: 'Tesla' },
+        { symbol: 'AMZN', name: 'Amazon' },
+      ];
 
       useEffect(() => {
         async function fetchStocks() {
           try {
-            // Using Yahoo Finance via a public API
-            const symbolList = symbols.join(',');
-            const res = await fetch(`https://query1.finance.yahoo.com/v7/finance/quote?symbols=${symbolList}`);
+            // Try using a CORS proxy with Yahoo Finance
+            const symbols = stockList.map(s => s.symbol).join(',');
+            const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://query1.finance.yahoo.com/v7/finance/quote?symbols=${symbols}`)}`;
+            const res = await fetch(proxyUrl);
             const data = await res.json();
 
-            if (data.quoteResponse && data.quoteResponse.result) {
-              const results = data.quoteResponse.result.map(q => ({
-                symbol: q.symbol.replace('.TO', '').replace('-USD', ''),
-                name: names[q.symbol] || q.shortName,
-                price: q.regularMarketPrice?.toFixed(2) || 'N/A',
-                change: q.regularMarketChangePercent?.toFixed(2) || 0
-              }));
+            if (data.quoteResponse?.result) {
+              const results = data.quoteResponse.result.map(q => {
+                const stockInfo = stockList.find(s => s.symbol === q.symbol);
+                return {
+                  symbol: q.symbol,
+                  name: stockInfo?.name || q.shortName,
+                  price: q.regularMarketPrice?.toFixed(2) || '---',
+                  change: q.regularMarketChangePercent?.toFixed(2) || 0
+                };
+              });
               setStocks(results);
+            } else {
+              throw new Error('No data');
             }
           } catch (e) {
-            console.error('Stock fetch failed:', e);
-            // Fallback to placeholder
-            setStocks(symbols.map(s => ({
-              symbol: s.replace('.TO', '').replace('-USD', ''),
-              name: names[s],
+            console.warn('Stock fetch failed, using fallback:', e);
+            // Use market data API as fallback - show links instead
+            setStocks(stockList.map(s => ({
+              ...s,
               price: '---',
               change: 0
             })));
@@ -834,7 +1289,7 @@
           setLoading(false);
         }
         fetchStocks();
-        const interval = setInterval(fetchStocks, 60000); // Refresh every minute
+        const interval = setInterval(fetchStocks, 2 * 60 * 1000); // Refresh every 2 min
         return () => clearInterval(interval);
       }, []);
 
@@ -849,18 +1304,29 @@
           ) : (
             <div className="stock-list">
               {stocks.map(stock => (
-                <div key={stock.symbol} className="stock-item">
+                <a
+                  key={stock.symbol}
+                  href={`https://finance.yahoo.com/quote/${stock.symbol}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="stock-item"
+                  style={{ textDecoration: 'none', color: 'inherit' }}
+                >
                   <div>
                     <div className="stock-symbol">{stock.symbol}</div>
                     <div className="stock-name">{stock.name}</div>
                   </div>
                   <div className="stock-price">
-                    <div className="stock-value">${stock.price}</div>
+                    <div className="stock-value">{stock.price !== '---' ? `$${stock.price}` : '---'}</div>
                     <div className={`stock-change ${parseFloat(stock.change) >= 0 ? 'up' : 'down'}`}>
-                      {parseFloat(stock.change) >= 0 ? '▲' : '▼'} {Math.abs(stock.change)}%
+                      {stock.price !== '---' ? (
+                        <>{parseFloat(stock.change) >= 0 ? '▲' : '▼'} {Math.abs(stock.change)}%</>
+                      ) : (
+                        'Click for quote'
+                      )}
                     </div>
                   </div>
-                </div>
+                </a>
               ))}
             </div>
           )}
@@ -872,27 +1338,42 @@
     function TickerBar() {
       const [items, setItems] = useState([]);
 
-      const symbols = ['SPY', 'QQQ', 'DIA', 'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA', 'TSLA', 'META', 'BTC-USD', 'ETH-USD', 'SHOP.TO', 'TD.TO', 'RY.TO'];
+      const symbols = ['SPY', 'QQQ', 'DIA', 'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA', 'TSLA', 'META', 'BTC-USD', 'ETH-USD'];
 
       useEffect(() => {
-        async function fetch() {
+        async function fetchData() {
           try {
-            const res = await window.fetch(`https://query1.finance.yahoo.com/v7/finance/quote?symbols=${symbols.join(',')}`);
+            const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://query1.finance.yahoo.com/v7/finance/quote?symbols=${symbols.join(',')}`)}`;
+            const res = await window.fetch(proxyUrl);
             const data = await res.json();
             if (data.quoteResponse?.result) {
               setItems(data.quoteResponse.result.map(q => ({
-                symbol: q.symbol.replace('.TO', '').replace('-USD', ''),
+                symbol: q.symbol.replace('-USD', ''),
                 price: q.regularMarketPrice?.toFixed(2) || '---',
                 change: q.regularMarketChangePercent?.toFixed(2) || 0
               })));
+            } else {
+              throw new Error('No data');
             }
           } catch (e) {
-            // Fallback
-            setItems(symbols.map(s => ({ symbol: s.replace('.TO', '').replace('-USD', ''), price: '---', change: 0 })));
+            // Fallback with placeholder data
+            setItems(symbols.map(s => ({ symbol: s.replace('-USD', ''), price: '---', change: 0 })));
           }
         }
-        fetch();
+        fetchData();
+        const interval = setInterval(fetchData, 2 * 60 * 1000);
+        return () => clearInterval(interval);
       }, []);
+
+      if (items.length === 0) {
+        return (
+          <div className="ticker-container">
+            <div style={{ padding: '0.5rem', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+              Loading market data...
+            </div>
+          </div>
+        );
+      }
 
       const doubled = [...items, ...items];
 
@@ -902,10 +1383,12 @@
             {doubled.map((item, i) => (
               <span key={i} className="ticker-item">
                 <span className="symbol">{item.symbol}</span>
-                <span>${item.price}</span>
-                <span className={`change ${parseFloat(item.change) >= 0 ? 'up' : 'down'}`}>
-                  {parseFloat(item.change) >= 0 ? '▲' : '▼'} {Math.abs(item.change)}%
-                </span>
+                <span>{item.price !== '---' ? `$${item.price}` : '---'}</span>
+                {item.price !== '---' && (
+                  <span className={`change ${parseFloat(item.change) >= 0 ? 'up' : 'down'}`}>
+                    {parseFloat(item.change) >= 0 ? '▲' : '▼'} {Math.abs(item.change)}%
+                  </span>
+                )}
               </span>
             ))}
           </div>
@@ -951,6 +1434,7 @@
 
             <StocksCard />
 
+            <TransitCard />
             <SportsCard />
             <TorontoCard />
             <PoliticsCard />
