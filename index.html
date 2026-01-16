@@ -596,7 +596,7 @@
   <div id="root"></div>
 
   <script type="text/babel">
-    const { useState, useEffect, useCallback } = React;
+    const { useState, useEffect, useCallback, useMemo } = React;
 
     // RSS Proxy - using rss2json
     const RSS_API = 'https://api.rss2json.com/v1/api.json?rss_url=';
@@ -609,18 +609,24 @@
       throw new Error('Failed to fetch RSS');
     }
 
-    // Time ago helper
-    function timeAgo(dateString) {
+    // Format date/time for news
+    function formatNewsTime(dateString) {
       const date = new Date(dateString);
       const now = new Date();
-      const seconds = Math.floor((now - date) / 1000);
-      if (seconds < 60) return 'just now';
-      const minutes = Math.floor(seconds / 60);
-      if (minutes < 60) return `${minutes}m ago`;
-      const hours = Math.floor(minutes / 60);
-      if (hours < 24) return `${hours}h ago`;
-      const days = Math.floor(hours / 24);
-      return `${days}d ago`;
+      const diffMs = now - date;
+      const diffHours = diffMs / (1000 * 60 * 60);
+
+      // If today, show time
+      if (diffHours < 24 && date.getDate() === now.getDate()) {
+        return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+      }
+      // If yesterday
+      if (diffHours < 48) {
+        return 'Yesterday ' + date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+      }
+      // Otherwise show date
+      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) +
+             ' ' + date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
     }
 
     // Weather Component (Real data from Open-Meteo)
@@ -743,7 +749,7 @@
                     {item.region && `${item.region} `}{item.sourceName}
                   </div>
                   <div className="news-headline">{item.title}</div>
-                  <div className="news-time">{timeAgo(item.pubDate)}</div>
+                  <div className="news-time">{formatNewsTime(item.pubDate)}</div>
                 </a>
               ))}
             </div>
@@ -1057,25 +1063,30 @@
 
       const getCurrentFrequency = () => frequencies[getTimeOfDay()];
 
-      // Calculate next departures based on typical frequencies
-      const getNextDepartures = (freq, walkTime) => {
-        const now = time.getMinutes() + (time.getSeconds() / 60);
-        const departures = [];
+      // Calculate next departures based on typical frequencies (deterministic)
+      const getNextDepartures = (freq, currentMinute) => {
+        // Calculate how many minutes until the next departure
+        // Assume departures happen at predictable intervals from the top of the hour
+        const minuteInCycle = currentMinute % freq;
+        const minsToNext = freq - minuteInCycle;
 
-        // Generate next 3 approximate departures
-        for (let i = 0; i < 3; i++) {
-          const minsFromNow = Math.floor(Math.random() * freq) + (i * freq);
-          departures.push(minsFromNow);
-        }
-
-        return departures.sort((a, b) => a - b);
+        // Return next 3 departures
+        return [minsToNext, minsToNext + freq, minsToNext + (freq * 2)];
       };
 
       const subwayFreq = getCurrentFrequency().subway;
       const busFreq = getCurrentFrequency().bus;
+      const currentMinute = time.getMinutes();
 
-      const subwayDepartures = getNextDepartures(subwayFreq, WALK_TO_SUBWAY);
-      const busDepartures = getNextDepartures(busFreq, WALK_TO_BUS);
+      // Memoize departures so they only change when the minute changes
+      const subwayDepartures = useMemo(
+        () => getNextDepartures(subwayFreq, currentMinute),
+        [subwayFreq, currentMinute]
+      );
+      const busDepartures = useMemo(
+        () => getNextDepartures(busFreq, currentMinute),
+        [busFreq, currentMinute]
+      );
 
       const formatDeparture = (mins) => {
         if (mins < 1) return 'Now';
@@ -1231,54 +1242,49 @@
                 {item.region && `${item.region} `}{item.sourceName}
               </div>
               <div className="news-headline">{item.title}</div>
-              <div className="news-time">{timeAgo(item.pubDate)}</div>
+              <div className="news-time">{formatNewsTime(item.pubDate)}</div>
             </a>
           ))}
         </div>
       );
     }
 
-    // TradingView Markets Widget
+    // TradingView Simple Overview Widget
     function StocksCard() {
       useEffect(() => {
-        // Load TradingView widget script
         const script = document.createElement('script');
-        script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-market-quotes.js';
+        script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-symbol-overview.js';
         script.async = true;
         script.innerHTML = JSON.stringify({
-          "width": "100%",
-          "height": 400,
-          "symbolsGroups": [
-            {
-              "name": "Indices",
-              "symbols": [
-                { "name": "FOREXCOM:SPXUSD", "displayName": "S&P 500" },
-                { "name": "FOREXCOM:NSXUSD", "displayName": "Nasdaq" },
-                { "name": "FOREXCOM:DJI", "displayName": "Dow Jones" }
-              ]
-            },
-            {
-              "name": "Tech",
-              "symbols": [
-                { "name": "NASDAQ:AAPL", "displayName": "Apple" },
-                { "name": "NASDAQ:MSFT", "displayName": "Microsoft" },
-                { "name": "NASDAQ:NVDA", "displayName": "NVIDIA" },
-                { "name": "NASDAQ:GOOGL", "displayName": "Google" },
-                { "name": "NASDAQ:TSLA", "displayName": "Tesla" }
-              ]
-            },
-            {
-              "name": "Crypto",
-              "symbols": [
-                { "name": "BITSTAMP:BTCUSD", "displayName": "Bitcoin" },
-                { "name": "BITSTAMP:ETHUSD", "displayName": "Ethereum" }
-              ]
-            }
+          "symbols": [
+            ["S&P 500", "FOREXCOM:SPXUSD|1M"],
+            ["Nasdaq", "FOREXCOM:NSXUSD|1M"],
+            ["Apple", "NASDAQ:AAPL|1M"],
+            ["NVIDIA", "NASDAQ:NVDA|1M"],
+            ["Bitcoin", "BITSTAMP:BTCUSD|1M"]
           ],
-          "showSymbolLogo": false,
+          "chartOnly": false,
+          "width": "100%",
+          "height": 280,
+          "locale": "en",
           "colorTheme": "dark",
-          "isTransparent": true,
-          "locale": "en"
+          "autosize": false,
+          "showVolume": false,
+          "showMA": false,
+          "hideDateRanges": true,
+          "hideMarketStatus": true,
+          "hideSymbolLogo": true,
+          "scalePosition": "no",
+          "scaleMode": "Normal",
+          "fontFamily": "Inter, sans-serif",
+          "fontSize": "10",
+          "noTimeScale": true,
+          "valuesTracking": "1",
+          "changeMode": "price-and-percent",
+          "chartType": "area",
+          "lineWidth": 2,
+          "lineType": 0,
+          "isTransparent": true
         });
 
         const container = document.getElementById('tradingview-widget');
@@ -1297,7 +1303,7 @@
             <span className="card-title"><span className="icon">📈</span> Markets</span>
             <a href="https://finance.yahoo.com" target="_blank" rel="noopener noreferrer" className="refresh-btn" title="Open Yahoo Finance">↗</a>
           </div>
-          <div id="tradingview-widget" className="tradingview-widget-container" style={{ height: '350px', overflow: 'hidden' }}>
+          <div id="tradingview-widget" className="tradingview-widget-container" style={{ height: '280px', overflow: 'hidden' }}>
             <div className="loading">Loading markets...</div>
           </div>
         </div>
