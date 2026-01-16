@@ -1238,59 +1238,57 @@
       );
     }
 
-    // Stock data using Finnhub public API (free, no key needed for basic quotes)
+    // TradingView Markets Widget
     function StocksCard() {
-      const [stocks, setStocks] = useState([]);
-      const [loading, setLoading] = useState(true);
-
-      const stockList = [
-        { symbol: 'SPY', name: 'S&P 500' },
-        { symbol: 'QQQ', name: 'Nasdaq 100' },
-        { symbol: 'AAPL', name: 'Apple' },
-        { symbol: 'MSFT', name: 'Microsoft' },
-        { symbol: 'GOOGL', name: 'Alphabet' },
-        { symbol: 'NVDA', name: 'NVIDIA' },
-        { symbol: 'TSLA', name: 'Tesla' },
-        { symbol: 'AMZN', name: 'Amazon' },
-      ];
-
       useEffect(() => {
-        async function fetchStocks() {
-          try {
-            // Try using a CORS proxy with Yahoo Finance
-            const symbols = stockList.map(s => s.symbol).join(',');
-            const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(`https://query1.finance.yahoo.com/v7/finance/quote?symbols=${symbols}`)}`;
-            const res = await fetch(proxyUrl);
-            const data = await res.json();
-
-            if (data.quoteResponse?.result) {
-              const results = data.quoteResponse.result.map(q => {
-                const stockInfo = stockList.find(s => s.symbol === q.symbol);
-                return {
-                  symbol: q.symbol,
-                  name: stockInfo?.name || q.shortName,
-                  price: q.regularMarketPrice?.toFixed(2) || '---',
-                  change: q.regularMarketChangePercent?.toFixed(2) || 0
-                };
-              });
-              setStocks(results);
-            } else {
-              throw new Error('No data');
+        // Load TradingView widget script
+        const script = document.createElement('script');
+        script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-market-quotes.js';
+        script.async = true;
+        script.innerHTML = JSON.stringify({
+          "width": "100%",
+          "height": 400,
+          "symbolsGroups": [
+            {
+              "name": "Indices",
+              "symbols": [
+                { "name": "FOREXCOM:SPXUSD", "displayName": "S&P 500" },
+                { "name": "FOREXCOM:NSXUSD", "displayName": "Nasdaq" },
+                { "name": "FOREXCOM:DJI", "displayName": "Dow Jones" }
+              ]
+            },
+            {
+              "name": "Tech",
+              "symbols": [
+                { "name": "NASDAQ:AAPL", "displayName": "Apple" },
+                { "name": "NASDAQ:MSFT", "displayName": "Microsoft" },
+                { "name": "NASDAQ:NVDA", "displayName": "NVIDIA" },
+                { "name": "NASDAQ:GOOGL", "displayName": "Google" },
+                { "name": "NASDAQ:TSLA", "displayName": "Tesla" }
+              ]
+            },
+            {
+              "name": "Crypto",
+              "symbols": [
+                { "name": "BITSTAMP:BTCUSD", "displayName": "Bitcoin" },
+                { "name": "BITSTAMP:ETHUSD", "displayName": "Ethereum" }
+              ]
             }
-          } catch (e) {
-            console.warn('Stock fetch failed, using fallback:', e);
-            // Use market data API as fallback - show links instead
-            setStocks(stockList.map(s => ({
-              ...s,
-              price: '---',
-              change: 0
-            })));
-          }
-          setLoading(false);
+          ],
+          "showSymbolLogo": false,
+          "colorTheme": "dark",
+          "isTransparent": true,
+          "locale": "en"
+        });
+
+        const container = document.getElementById('tradingview-widget');
+        if (container) {
+          container.innerHTML = '';
+          const widgetDiv = document.createElement('div');
+          widgetDiv.className = 'tradingview-widget-container__widget';
+          container.appendChild(widgetDiv);
+          container.appendChild(script);
         }
-        fetchStocks();
-        const interval = setInterval(fetchStocks, 2 * 60 * 1000); // Refresh every 2 min
-        return () => clearInterval(interval);
       }, []);
 
       return (
@@ -1299,99 +1297,52 @@
             <span className="card-title"><span className="icon">📈</span> Markets</span>
             <a href="https://finance.yahoo.com" target="_blank" rel="noopener noreferrer" className="refresh-btn" title="Open Yahoo Finance">↗</a>
           </div>
-          {loading ? (
-            <div className="loading">Loading</div>
-          ) : (
-            <div className="stock-list">
-              {stocks.map(stock => (
-                <a
-                  key={stock.symbol}
-                  href={`https://finance.yahoo.com/quote/${stock.symbol}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="stock-item"
-                  style={{ textDecoration: 'none', color: 'inherit' }}
-                >
-                  <div>
-                    <div className="stock-symbol">{stock.symbol}</div>
-                    <div className="stock-name">{stock.name}</div>
-                  </div>
-                  <div className="stock-price">
-                    <div className="stock-value">{stock.price !== '---' ? `$${stock.price}` : '---'}</div>
-                    <div className={`stock-change ${parseFloat(stock.change) >= 0 ? 'up' : 'down'}`}>
-                      {stock.price !== '---' ? (
-                        <>{parseFloat(stock.change) >= 0 ? '▲' : '▼'} {Math.abs(stock.change)}%</>
-                      ) : (
-                        'Click for quote'
-                      )}
-                    </div>
-                  </div>
-                </a>
-              ))}
-            </div>
-          )}
+          <div id="tradingview-widget" className="tradingview-widget-container" style={{ height: '350px', overflow: 'hidden' }}>
+            <div className="loading">Loading markets...</div>
+          </div>
         </div>
       );
     }
 
-    // Stock Ticker Bar
+    // TradingView Ticker Tape Widget
     function TickerBar() {
-      const [items, setItems] = useState([]);
-
-      const symbols = ['SPY', 'QQQ', 'DIA', 'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA', 'TSLA', 'META', 'BTC-USD', 'ETH-USD'];
-
       useEffect(() => {
-        async function fetchData() {
-          try {
-            const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(`https://query1.finance.yahoo.com/v7/finance/quote?symbols=${symbols.join(',')}`)}`;
-            const res = await window.fetch(proxyUrl);
-            const data = await res.json();
-            if (data.quoteResponse?.result) {
-              setItems(data.quoteResponse.result.map(q => ({
-                symbol: q.symbol.replace('-USD', ''),
-                price: q.regularMarketPrice?.toFixed(2) || '---',
-                change: q.regularMarketChangePercent?.toFixed(2) || 0
-              })));
-            } else {
-              throw new Error('No data');
-            }
-          } catch (e) {
-            // Fallback with placeholder data
-            setItems(symbols.map(s => ({ symbol: s.replace('-USD', ''), price: '---', change: 0 })));
-          }
+        const script = document.createElement('script');
+        script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-ticker-tape.js';
+        script.async = true;
+        script.innerHTML = JSON.stringify({
+          "symbols": [
+            { "proName": "FOREXCOM:SPXUSD", "title": "S&P 500" },
+            { "proName": "FOREXCOM:NSXUSD", "title": "Nasdaq" },
+            { "proName": "NASDAQ:AAPL", "title": "Apple" },
+            { "proName": "NASDAQ:MSFT", "title": "Microsoft" },
+            { "proName": "NASDAQ:NVDA", "title": "NVIDIA" },
+            { "proName": "NASDAQ:GOOGL", "title": "Google" },
+            { "proName": "NASDAQ:TSLA", "title": "Tesla" },
+            { "proName": "NASDAQ:AMZN", "title": "Amazon" },
+            { "proName": "BITSTAMP:BTCUSD", "title": "Bitcoin" },
+            { "proName": "BITSTAMP:ETHUSD", "title": "Ethereum" }
+          ],
+          "showSymbolLogo": false,
+          "colorTheme": "dark",
+          "isTransparent": true,
+          "displayMode": "adaptive",
+          "locale": "en"
+        });
+
+        const container = document.getElementById('ticker-widget');
+        if (container) {
+          container.innerHTML = '';
+          const widgetDiv = document.createElement('div');
+          widgetDiv.className = 'tradingview-widget-container__widget';
+          container.appendChild(widgetDiv);
+          container.appendChild(script);
         }
-        fetchData();
-        const interval = setInterval(fetchData, 2 * 60 * 1000);
-        return () => clearInterval(interval);
       }, []);
 
-      if (items.length === 0) {
-        return (
-          <div className="ticker-container">
-            <div style={{ padding: '0.5rem', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-              Loading market data...
-            </div>
-          </div>
-        );
-      }
-
-      const doubled = [...items, ...items];
-
       return (
-        <div className="ticker-container">
-          <div className="ticker">
-            {doubled.map((item, i) => (
-              <span key={i} className="ticker-item">
-                <span className="symbol">{item.symbol}</span>
-                <span>{item.price !== '---' ? `$${item.price}` : '---'}</span>
-                {item.price !== '---' && (
-                  <span className={`change ${parseFloat(item.change) >= 0 ? 'up' : 'down'}`}>
-                    {parseFloat(item.change) >= 0 ? '▲' : '▼'} {Math.abs(item.change)}%
-                  </span>
-                )}
-              </span>
-            ))}
-          </div>
+        <div className="ticker-container" style={{ padding: 0, overflow: 'hidden' }}>
+          <div id="ticker-widget" className="tradingview-widget-container" style={{ height: '46px' }}></div>
         </div>
       );
     }
