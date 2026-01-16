@@ -1259,7 +1259,7 @@
           try {
             // Try using a CORS proxy with Yahoo Finance
             const symbols = stockList.map(s => s.symbol).join(',');
-            const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://query1.finance.yahoo.com/v7/finance/quote?symbols=${symbols}`)}`;
+            const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(`https://query1.finance.yahoo.com/v7/finance/quote?symbols=${symbols}`)}`;
             const res = await fetch(proxyUrl);
             const data = await res.json();
 
@@ -1343,7 +1343,7 @@
       useEffect(() => {
         async function fetchData() {
           try {
-            const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://query1.finance.yahoo.com/v7/finance/quote?symbols=${symbols.join(',')}`)}`;
+            const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(`https://query1.finance.yahoo.com/v7/finance/quote?symbols=${symbols.join(',')}`)}`;
             const res = await window.fetch(proxyUrl);
             const data = await res.json();
             if (data.quoteResponse?.result) {
