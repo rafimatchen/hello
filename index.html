@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rafi's Dashboard</title>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --bg-primary: #0a0a0f;
+      --bg-secondary: #12121a;
+      --bg-card: #1a1a24;
+      --bg-card-hover: #22222e;
+      --border: #2a2a3a;
+      --text-primary: #f0f0f5;
+      --text-secondary: #8888a0;
+      --accent-blue: #3b82f6;
+      --accent-green: #22c55e;
+      --accent-red: #ef4444;
+      --accent-orange: #f97316;
+      --accent-purple: #a855f7;
+      --accent-cyan: #06b6d4;
+      --accent-pink: #ec4899;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      line-height: 1.5;
+    }
+
+    .dashboard {
+      max-width: 1600px;
+      margin: 0 auto;
+      padding: 1.5rem;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2rem;
+      padding-bottom: 1.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .header h1 {
+      font-size: 1.75rem;
+      font-weight: 600;
+      background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .header-time {
+      text-align: right;
+    }
+
+    .header-time .time {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 2rem;
+      font-weight: 500;
+    }
+
+    .header-time .date {
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 1rem;
+    }
+
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.25rem;
+      transition: all 0.2s ease;
+    }
+
+    .card:hover {
+      background: var(--bg-card-hover);
+      border-color: #3a3a4a;
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+
+    .card-title {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .card-title .icon {
+      font-size: 1rem;
+    }
+
+    /* Weather Cards */
+    .weather-grid {
+      grid-column: span 6;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1rem;
+    }
+
+    .weather-card {
+      text-align: center;
+    }
+
+    .weather-city {
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      font-size: 1rem;
+    }
+
+    .weather-temp {
+      font-size: 2.5rem;
+      font-weight: 300;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .weather-desc {
+      color: var(--text-secondary);
+      font-size: 0.85rem;
+      margin-top: 0.25rem;
+    }
+
+    .weather-details {
+      display: flex;
+      justify-content: center;
+      gap: 1rem;
+      margin-top: 0.75rem;
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+    }
+
+    /* Stocks */
+    .stocks-card {
+      grid-column: span 6;
+    }
+
+    .stock-list {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.75rem;
+    }
+
+    .stock-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.75rem;
+      background: var(--bg-secondary);
+      border-radius: 8px;
+    }
+
+    .stock-symbol {
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 600;
+      font-size: 0.9rem;
+    }
+
+    .stock-name {
+      font-size: 0.7rem;
+      color: var(--text-secondary);
+    }
+
+    .stock-price {
+      text-align: right;
+    }
+
+    .stock-value {
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 500;
+    }
+
+    .stock-change {
+      font-size: 0.75rem;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .stock-change.up { color: var(--accent-green); }
+    .stock-change.down { color: var(--accent-red); }
+
+    /* Sports */
+    .sports-card {
+      grid-column: span 4;
+    }
+
+    .sports-section {
+      margin-bottom: 1rem;
+    }
+
+    .sports-section:last-child {
+      margin-bottom: 0;
+    }
+
+    .sports-league {
+      font-size: 0.7rem;
+      font-weight: 600;
+      color: var(--accent-cyan);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 0.5rem;
+    }
+
+    .game-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.5rem 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.85rem;
+    }
+
+    .game-item:last-child {
+      border-bottom: none;
+    }
+
+    .team {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .team-logo {
+      font-size: 1.1rem;
+    }
+
+    .score {
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 600;
+    }
+
+    .game-status {
+      font-size: 0.7rem;
+      color: var(--text-secondary);
+    }
+
+    .live-indicator {
+      color: var(--accent-red);
+      font-weight: 600;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    /* News Cards */
+    .news-card {
+      grid-column: span 4;
+    }
+
+    .news-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .news-item {
+      padding: 0.75rem;
+      background: var(--bg-secondary);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .news-item:hover {
+      background: var(--bg-card-hover);
+      transform: translateX(4px);
+    }
+
+    .news-source {
+      font-size: 0.65rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 0.25rem;
+    }
+
+    .news-source.politics { color: var(--accent-red); }
+    .news-source.business { color: var(--accent-green); }
+    .news-source.culture { color: var(--accent-purple); }
+    .news-source.sports { color: var(--accent-orange); }
+
+    .news-headline {
+      font-size: 0.85rem;
+      font-weight: 500;
+      line-height: 1.4;
+    }
+
+    .news-time {
+      font-size: 0.7rem;
+      color: var(--text-secondary);
+      margin-top: 0.35rem;
+    }
+
+    /* Deep Cuts Section */
+    .deep-cuts-card {
+      grid-column: span 4;
+    }
+
+    .deep-cut-item {
+      padding: 1rem;
+      background: linear-gradient(135deg, rgba(168, 85, 247, 0.1), rgba(236, 72, 153, 0.1));
+      border: 1px solid rgba(168, 85, 247, 0.2);
+      border-radius: 8px;
+      margin-bottom: 0.75rem;
+    }
+
+    .deep-cut-item:last-child {
+      margin-bottom: 0;
+    }
+
+    .deep-cut-category {
+      font-size: 0.65rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      color: var(--accent-pink);
+      margin-bottom: 0.5rem;
+    }
+
+    .deep-cut-title {
+      font-size: 0.9rem;
+      font-weight: 500;
+      margin-bottom: 0.35rem;
+    }
+
+    .deep-cut-desc {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+
+    /* Toronto Focus */
+    .toronto-card {
+      grid-column: span 4;
+      background: linear-gradient(135deg, var(--bg-card), rgba(59, 130, 246, 0.1));
+      border-color: rgba(59, 130, 246, 0.3);
+    }
+
+    .toronto-header {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .toronto-flag {
+      font-size: 1.5rem;
+    }
+
+    /* Ticker */
+    .ticker-container {
+      grid-column: span 12;
+      overflow: hidden;
+      background: var(--bg-secondary);
+      border-radius: 8px;
+      padding: 0.75rem 0;
+    }
+
+    .ticker {
+      display: flex;
+      animation: scroll 30s linear infinite;
+      white-space: nowrap;
+    }
+
+    .ticker-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0 2rem;
+      font-size: 0.85rem;
+    }
+
+    .ticker-item .symbol {
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 600;
+    }
+
+    .ticker-item .change.up { color: var(--accent-green); }
+    .ticker-item .change.down { color: var(--accent-red); }
+
+    @keyframes scroll {
+      0% { transform: translateX(0); }
+      100% { transform: translateX(-50%); }
+    }
+
+    /* Loading state */
+    .loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      color: var(--text-secondary);
+    }
+
+    .loading::after {
+      content: '';
+      width: 20px;
+      height: 20px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent-blue);
+      border-radius: 50%;
+      margin-left: 0.5rem;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Responsive */
+    @media (max-width: 1200px) {
+      .weather-grid { grid-column: span 12; }
+      .stocks-card { grid-column: span 12; }
+      .sports-card { grid-column: span 6; }
+      .news-card { grid-column: span 6; }
+      .deep-cuts-card { grid-column: span 6; }
+      .toronto-card { grid-column: span 6; }
+    }
+
+    @media (max-width: 768px) {
+      .sports-card,
+      .news-card,
+      .deep-cuts-card,
+      .toronto-card {
+        grid-column: span 12;
+      }
+      .weather-grid {
+        grid-template-columns: 1fr;
+      }
+      .stock-list {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    // Weather Component
+    function WeatherCard({ city, lat, lon, timezone }) {
+      const [weather, setWeather] = useState(null);
+
+      useEffect(() => {
+        fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m&timezone=${timezone}`)
+          .then(r => r.json())
+          .then(data => setWeather(data.current))
+          .catch(console.error);
+      }, []);
+
+      const getWeatherEmoji = (code) => {
+        if (code === 0) return '☀️';
+        if (code <= 3) return '⛅';
+        if (code <= 48) return '🌫️';
+        if (code <= 67) return '🌧️';
+        if (code <= 77) return '🌨️';
+        if (code <= 82) return '🌧️';
+        if (code <= 86) return '❄️';
+        if (code >= 95) return '⛈️';
+        return '🌤️';
+      };
+
+      const getWeatherDesc = (code) => {
+        if (code === 0) return 'Clear sky';
+        if (code <= 3) return 'Partly cloudy';
+        if (code <= 48) return 'Foggy';
+        if (code <= 67) return 'Rainy';
+        if (code <= 77) return 'Snowy';
+        if (code <= 82) return 'Showers';
+        if (code <= 86) return 'Snow showers';
+        if (code >= 95) return 'Thunderstorm';
+        return 'Cloudy';
+      };
+
+      if (!weather) return <div className="card weather-card"><div className="loading">Loading</div></div>;
+
+      return (
+        <div className="card weather-card">
+          <div className="weather-city">{city}</div>
+          <div style={{ fontSize: '2rem', margin: '0.5rem 0' }}>
+            {getWeatherEmoji(weather.weather_code)}
+          </div>
+          <div className="weather-temp">{Math.round(weather.temperature_2m)}°</div>
+          <div className="weather-desc">{getWeatherDesc(weather.weather_code)}</div>
+          <div className="weather-details">
+            <span>💧 {weather.relative_humidity_2m}%</span>
+            <span>💨 {Math.round(weather.wind_speed_10m)} km/h</span>
+          </div>
+        </div>
+      );
+    }
+
+    // Stock Ticker Data (simulated with realistic values)
+    function StocksCard() {
+      const stocks = [
+        { symbol: 'SPY', name: 'S&P 500', price: 592.34, change: 0.82 },
+        { symbol: 'QQQ', name: 'Nasdaq 100', price: 518.67, change: 1.24 },
+        { symbol: 'AAPL', name: 'Apple', price: 243.56, change: -0.34 },
+        { symbol: 'MSFT', name: 'Microsoft', price: 428.92, change: 0.56 },
+        { symbol: 'GOOGL', name: 'Alphabet', price: 195.23, change: 1.12 },
+        { symbol: 'TSLA', name: 'Tesla', price: 412.78, change: -2.34 },
+        { symbol: 'TD', name: 'TD Bank', price: 78.45, change: 0.23 },
+        { symbol: 'BTC', name: 'Bitcoin', price: '98,432', change: 3.21 },
+      ];
+
+      return (
+        <div className="card stocks-card">
+          <div className="card-header">
+            <span className="card-title"><span className="icon">📈</span> Markets</span>
+          </div>
+          <div className="stock-list">
+            {stocks.map(stock => (
+              <div key={stock.symbol} className="stock-item">
+                <div>
+                  <div className="stock-symbol">{stock.symbol}</div>
+                  <div className="stock-name">{stock.name}</div>
+                </div>
+                <div className="stock-price">
+                  <div className="stock-value">${stock.price}</div>
+                  <div className={`stock-change ${stock.change >= 0 ? 'up' : 'down'}`}>
+                    {stock.change >= 0 ? '▲' : '▼'} {Math.abs(stock.change)}%
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    // Toronto Sports Focus
+    function TorontoSportsCard() {
+      const torontoTeams = [
+        { team: 'Maple Leafs', logo: '🍁', league: 'NHL', record: '28-14-2', next: 'vs BOS Tonight 7PM' },
+        { team: 'Raptors', logo: '🦖', league: 'NBA', record: '12-28', next: 'vs MIA Tomorrow 7:30PM' },
+        { team: 'Blue Jays', logo: '🐦', league: 'MLB', record: 'Offseason', next: 'Spring Training Feb 15' },
+        { team: 'Toronto FC', logo: '⚽', league: 'MLS', record: 'Offseason', next: 'Season starts Feb 22' },
+        { team: 'Argonauts', logo: '🏈', league: 'CFL', record: 'Grey Cup Champs', next: 'Season starts June' },
+      ];
+
+      return (
+        <div className="card toronto-card">
+          <div className="toronto-header">
+            <span className="toronto-flag">🇨🇦</span>
+            <span className="card-title" style={{ margin: 0 }}>Toronto Sports</span>
+          </div>
+          {torontoTeams.map(team => (
+            <div key={team.team} className="game-item">
+              <div className="team">
+                <span className="team-logo">{team.logo}</span>
+                <div>
+                  <div style={{ fontWeight: 500 }}>{team.team}</div>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>{team.record}</div>
+                </div>
+              </div>
+              <div style={{ textAlign: 'right', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                {team.next}
+              </div>
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    // Sports Scores
+    function SportsCard() {
+      const games = {
+        NHL: [
+          { away: 'EDM', home: 'VGK', awayScore: 3, homeScore: 4, status: 'Final' },
+          { away: 'NYR', home: 'CAR', awayScore: 2, homeScore: 2, status: '3rd 8:42', live: true },
+        ],
+        NBA: [
+          { away: 'LAL', home: 'BOS', awayScore: 108, homeScore: 112, status: 'Final' },
+          { away: 'GSW', home: 'PHX', awayScore: 89, homeScore: 94, status: '4th 4:20', live: true },
+        ],
+        NFL: [
+          { away: 'KC', home: 'BUF', awayScore: 0, homeScore: 0, status: 'Sun 6:30 PM', upcoming: true },
+        ],
+        EPL: [
+          { away: 'Liverpool', home: 'Arsenal', awayScore: 2, homeScore: 1, status: 'Final' },
+        ],
+      };
+
+      return (
+        <div className="card sports-card">
+          <div className="card-header">
+            <span className="card-title"><span className="icon">🏆</span> Scores</span>
+          </div>
+          {Object.entries(games).map(([league, leagueGames]) => (
+            <div key={league} className="sports-section">
+              <div className="sports-league">{league}</div>
+              {leagueGames.map((game, i) => (
+                <div key={i} className="game-item">
+                  <span>{game.away}</span>
+                  <span className="score">
+                    {game.upcoming ? '-' : game.awayScore} - {game.upcoming ? '-' : game.homeScore}
+                  </span>
+                  <span>{game.home}</span>
+                  <span className={`game-status ${game.live ? 'live-indicator' : ''}`}>
+                    {game.live && '● '}{game.status}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    // Politics News
+    function PoliticsCard() {
+      const news = [
+        { source: 'Reuters', headline: 'Biden administration announces new semiconductor manufacturing incentives', time: '2h ago', region: '🇺🇸' },
+        { source: 'Globe & Mail', headline: 'Trudeau faces caucus pressure ahead of key budget vote', time: '3h ago', region: '🇨🇦' },
+        { source: 'Times of Israel', headline: 'Netanyahu coalition debates judicial reform amendments', time: '4h ago', region: '🇮🇱' },
+        { source: 'AP News', headline: 'Congress nears bipartisan deal on border security package', time: '5h ago', region: '🇺🇸' },
+        { source: 'CBC', headline: 'Ontario announces major transit funding for GTA expansion', time: '6h ago', region: '🇨🇦' },
+      ];
+
+      return (
+        <div className="card news-card">
+          <div className="card-header">
+            <span className="card-title"><span className="icon">🏛️</span> Politics</span>
+          </div>
+          <div className="news-list">
+            {news.map((item, i) => (
+              <div key={i} className="news-item">
+                <div className="news-source politics">{item.region} {item.source}</div>
+                <div className="news-headline">{item.headline}</div>
+                <div className="news-time">{item.time}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    // Business News
+    function BusinessCard() {
+      const news = [
+        { source: 'Bloomberg', headline: 'Fed signals potential rate cuts as inflation cools further', time: '1h ago' },
+        { source: 'FT', headline: 'OpenAI in talks for new funding round at $150B valuation', time: '2h ago' },
+        { source: 'WSJ', headline: 'Tech giants announce joint AI safety initiative', time: '3h ago' },
+        { source: 'Reuters', headline: 'Oil prices surge on Middle East supply concerns', time: '4h ago' },
+        { source: 'CNBC', headline: 'Housing market shows signs of stabilization in Q4', time: '5h ago' },
+      ];
+
+      return (
+        <div className="card news-card">
+          <div className="card-header">
+            <span className="card-title"><span className="icon">💼</span> Business</span>
+          </div>
+          <div className="news-list">
+            {news.map((item, i) => (
+              <div key={i} className="news-item">
+                <div className="news-source business">{item.source}</div>
+                <div className="news-headline">{item.headline}</div>
+                <div className="news-time">{item.time}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    // Deep Cuts - Intellectual/Cultural
+    function DeepCutsCard() {
+      const items = [
+        {
+          category: 'Philosophy',
+          title: 'The Return of Virtue Ethics in AI Alignment',
+          desc: 'How Aristotelian frameworks are reshaping machine learning ethics debates'
+        },
+        {
+          category: 'Architecture',
+          title: 'Tadao Ando\'s New Meditation Pavilion Opens',
+          desc: 'The minimalist master creates a concrete sanctuary in rural Japan'
+        },
+        {
+          category: 'Literature',
+          title: 'Rediscovered Borges Manuscripts Surface',
+          desc: 'Previously unknown short stories found in Buenos Aires archive'
+        },
+        {
+          category: 'Jazz',
+          title: 'Coltrane\'s Lost 1963 Session Finally Released',
+          desc: 'Impulse! unearths unreleased quartet recordings from Van Gelder Studio'
+        },
+      ];
+
+      return (
+        <div className="card deep-cuts-card">
+          <div className="card-header">
+            <span className="card-title"><span className="icon">🎭</span> Deep Cuts</span>
+          </div>
+          {items.map((item, i) => (
+            <div key={i} className="deep-cut-item">
+              <div className="deep-cut-category">{item.category}</div>
+              <div className="deep-cut-title">{item.title}</div>
+              <div className="deep-cut-desc">{item.desc}</div>
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    // Culture News
+    function CultureCard() {
+      const news = [
+        { source: 'Pitchfork', headline: 'The defining albums reshaping experimental music in 2025', time: '2h ago' },
+        { source: 'Criterion', headline: 'New 4K restorations of Tarkovsky\'s entire filmography announced', time: '4h ago' },
+        { source: 'NYT Books', headline: 'This year\'s most ambitious debut novels', time: '5h ago' },
+        { source: 'Artforum', headline: 'Venice Biennale announces 2026 curator and theme', time: '6h ago' },
+        { source: 'n+1', headline: 'On the new literary pessimism: essays from the discourse', time: '8h ago' },
+      ];
+
+      return (
+        <div className="card news-card">
+          <div className="card-header">
+            <span className="card-title"><span className="icon">🎨</span> Culture</span>
+          </div>
+          <div className="news-list">
+            {news.map((item, i) => (
+              <div key={i} className="news-item">
+                <div className="news-source culture">{item.source}</div>
+                <div className="news-headline">{item.headline}</div>
+                <div className="news-time">{item.time}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    // Stock Ticker Bar
+    function TickerBar() {
+      const items = [
+        { symbol: 'SPY', price: 592.34, change: 0.82 },
+        { symbol: 'QQQ', price: 518.67, change: 1.24 },
+        { symbol: 'DIA', price: 437.12, change: 0.34 },
+        { symbol: 'AAPL', price: 243.56, change: -0.34 },
+        { symbol: 'MSFT', price: 428.92, change: 0.56 },
+        { symbol: 'GOOGL', price: 195.23, change: 1.12 },
+        { symbol: 'AMZN', price: 225.67, change: 0.89 },
+        { symbol: 'NVDA', price: 142.34, change: 2.45 },
+        { symbol: 'TSLA', price: 412.78, change: -2.34 },
+        { symbol: 'META', price: 612.45, change: 1.67 },
+        { symbol: 'BTC', price: '98,432', change: 3.21 },
+        { symbol: 'ETH', price: '3,456', change: 2.87 },
+        { symbol: 'SHOP', price: 115.23, change: 1.45 },
+        { symbol: 'TD', price: 78.45, change: 0.23 },
+        { symbol: 'RY', price: 134.67, change: 0.12 },
+      ];
+
+      const doubled = [...items, ...items];
+
+      return (
+        <div className="ticker-container">
+          <div className="ticker">
+            {doubled.map((item, i) => (
+              <span key={i} className="ticker-item">
+                <span className="symbol">{item.symbol}</span>
+                <span>${item.price}</span>
+                <span className={`change ${item.change >= 0 ? 'up' : 'down'}`}>
+                  {item.change >= 0 ? '▲' : '▼'} {Math.abs(item.change)}%
+                </span>
+              </span>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    // Main App
+    function App() {
+      const [time, setTime] = useState(new Date());
+
+      useEffect(() => {
+        const timer = setInterval(() => setTime(new Date()), 1000);
+        return () => clearInterval(timer);
+      }, []);
+
+      const formatDate = (d) => d.toLocaleDateString('en-US', {
+        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+      });
+
+      return (
+        <div className="dashboard">
+          <header className="header">
+            <h1>Good {time.getHours() < 12 ? 'morning' : time.getHours() < 18 ? 'afternoon' : 'evening'}, Rafi</h1>
+            <div className="header-time">
+              <div className="time">
+                {time.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+              </div>
+              <div className="date">{formatDate(time)}</div>
+            </div>
+          </header>
+
+          <div className="grid">
+            <TickerBar />
+
+            <div className="weather-grid">
+              <WeatherCard city="New York" lat={40.7128} lon={-74.006} timezone="America/New_York" />
+              <WeatherCard city="Toronto" lat={43.6532} lon={-79.3832} timezone="America/Toronto" />
+              <WeatherCard city="Tel Aviv" lat={32.0853} lon={34.7818} timezone="Asia/Jerusalem" />
+            </div>
+
+            <StocksCard />
+
+            <TorontoSportsCard />
+            <SportsCard />
+            <PoliticsCard />
+            <BusinessCard />
+            <CultureCard />
+            <DeepCutsCard />
+          </div>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
