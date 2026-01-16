@@ -33,6 +33,24 @@
       --accent-pink: #ec4899;
     }
 
+    /* Light mode variables */
+    :root[data-theme="light"] {
+      --bg-primary: #f5f5f7;
+      --bg-secondary: #ffffff;
+      --bg-card: #ffffff;
+      --bg-card-hover: #f0f0f2;
+      --border: #d1d1d6;
+      --text-primary: #1d1d1f;
+      --text-secondary: #6e6e73;
+      --accent-blue: #0066cc;
+      --accent-green: #28a745;
+      --accent-red: #dc3545;
+      --accent-orange: #f97316;
+      --accent-purple: #8b5cf6;
+      --accent-cyan: #0891b2;
+      --accent-pink: #db2777;
+    }
+
     body {
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
       background: var(--bg-primary);
@@ -597,6 +615,22 @@
 
   <script type="text/babel">
     const { useState, useEffect, useCallback, useMemo } = React;
+
+    // Time-based theme switching
+    function applyThemeBasedOnTime() {
+      const hour = new Date().getHours();
+      // Light mode: 6 AM (6) to 6 PM (18)
+      // Dark mode: 6 PM (18) to 6 AM (6)
+      const isLightMode = hour >= 6 && hour < 18;
+      const theme = isLightMode ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', theme);
+    }
+
+    // Apply theme on page load
+    applyThemeBasedOnTime();
+
+    // Check and update theme every minute
+    setInterval(applyThemeBasedOnTime, 60000);
 
     // RSS Proxy - using rss2json
     const RSS_API = 'https://api.rss2json.com/v1/api.json?rss_url=';
